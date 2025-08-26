@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Detail Anggota</title>
+<link rel="stylesheet" href="style.css" />
+<style>
+  .detail-row {
+    display: flex;
+    margin-bottom: 10px;
+    padding: 6px 10px;
+    border-bottom: 1px solid #ddd;
+  }
+  .detail-row label {
+    width: 150px;
+    font-weight: bold;
+  }
+  .detail-row .value {
+    flex: 1;
+  }
+  .editBtn { 
+    width : 100px;
+    background:#4CAF50; 
+    color:white; 
+    padding:8px 14px; 
+    border:none; 
+    border-radius:5px; 
+    cursor:pointer; 
+    margin-right:10px;
+  }
+  .deleteBtn { 
+    width : 100px;
+    background:#f44336; 
+    color:white; 
+    padding:8px 14px; 
+    border:none; 
+    border-radius:5px; 
+    cursor:pointer; 
+  }
+  .foto-container {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 10px;
+  }
+  .foto-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .foto-item img {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    margin-bottom: 5px;
+    border-radius: 5px;
+  }
+  .foto-item span {
+    font-size: 14px;
+    font-weight: bold;
+    color: #333;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="tambah">
+    <h2>Detail Anggota</h2>
+    <div id="content"></div>
+    <div id="buttons" style="margin-top:20px;"></div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, doc, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBZTjmiy6ggJQwhEjGOlxBnpKp-O4B2BZQ",
+  authDomain: "berkah-abadi-tunggal.firebaseapp.com",
+  projectId: "berkah-abadi-tunggal",
+  storageBucket: "berkah-abadi-tunggal.appspot.com",
+  messagingSenderId: "481882897013",
+  appId: "1:481882897013:web:163f26b6e1778743f5963c"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const contentDiv = document.getElementById("content");
+const buttonsDiv = document.getElementById("buttons");
+
+// Ambil docId dari URL
+const params = new URLSearchParams(window.location.search);
+const docId = params.get("id");
+if(!docId){
+  alert("ID anggota tidak ditemukan");
+  window.location.href = "dashboard.html";
+}
+
+// Cek login
+onAuthStateChanged(auth, async user => {
+  if(!user){
+    alert("Silakan login terlebih dahulu!");
+    window.location.href = "login.html";
+  } else {
+    const userRole = localStorage.getItem("userRole") || "karyawan";
+    loadDetail(docId, userRole);
+  }
+});
+
+// Peta label
+const labelMap = {
+  nama: "Nama ",
+  noanggota: "No Anggota ",
+  resort: "Resort ",
+  alamat: "Alamat ",
+  telepone: "Nomor Telepon ",
+  bpinjaman: "Besar Pinjaman ",
+  pinjamanke: "Pinjaman Ke ",
+  pekerjaan: "Pekerjaan ",
+  umur: "Umur ",
+  drop: "Cair Tanggal "
+};
+
+// Fungsi buat baris detail
+function buatRow(field, text) {
+  const row = document.createElement("div");
+  row.className = "detail-row";
+
+  const label = document.createElement("label");
+  label.innerText = (labelMap[field] || field.charAt(0).toUpperCase() + field.slice(1)) + ":";
+
+  const value = document.createElement("span");
+  value.className = "value";
+  value.innerText = text;
+
+  row.appendChild(label);
+  row.appendChild(value);
+  return row;
+}
+
+// Fungsi buat foto dengan label
+function buatFoto(src, labelText) {
+  const div = document.createElement("div");
+  div.className = "foto-item";
+
+  const img = document.createElement("img");
+  img.src = src || "";
+
+  const label = document.createElement("span");
+  label.innerText = labelText;
+
+  div.appendChild(img);
+  div.appendChild(label);
+  return div;
+}
+
+async function loadDetail(id, role){
+  try{
+    const docRef = doc(db,"anggota",id);
+    const docSnap = await getDoc(docRef);
+    if(docSnap.exists()){
+      const data = docSnap.data();
+      contentDiv.innerHTML = "";
+
+      // Tambahkan foto di atas No Anggota
+      const fotoDiv = document.createElement("div");
+      fotoDiv.className = "foto-container";
+      fotoDiv.appendChild(buatFoto(data.foto1, "Pemohon"));
+      fotoDiv.appendChild(buatFoto(data.foto2, "Saksi"));
+      contentDiv.appendChild(fotoDiv);
+
+      // Urutan field utama
+      const urutanField = ["noanggota", "nama", "umur", "alamat", "telepone", "pekerjaan", "resort", "pinjamanke", "bpinjaman", "drop"];
+      urutanField.forEach(field => {
+        if (data[field] !== undefined) {
+          contentDiv.appendChild(buatRow(field, data[field]));
+        }
+      });
+
+      // Field lain (kecuali foto)
+      for (const key in data) {
+        if (!urutanField.includes(key) && key !== "foto1" && key !== "foto2") {
+          contentDiv.appendChild(buatRow(key, data[key]));
+        }
+      }
+
+      // Tombol
+      buttonsDiv.innerHTML = "";
+      const editBtn = document.createElement("button");
+      editBtn.className = "editBtn";
+      editBtn.innerText = "Edit";
+      editBtn.onclick = ()=>window.location.href=`edit_anggota.html?id=${id}`;
+      buttonsDiv.appendChild(editBtn);
+
+      if(role === "admin"){
+        const deleteBtn = document.createElement("button");
+        deleteBtn.className = "deleteBtn";
+        deleteBtn.innerText = "Hapus";
+        deleteBtn.onclick = async ()=>{
+          if(confirm("Apakah Anda yakin ingin menghapus anggota ini?")){
+            await deleteDoc(doc(db,"anggota",id));
+            alert("Anggota berhasil dihapus");
+            window.location.href="dashboard.html";
+          }
+        };
+        buttonsDiv.appendChild(deleteBtn);
+      }
+
+    } else {
+      alert("Data anggota tidak ditemukan!");
+      window.location.href="dashboard.html";
+    }
+  } catch(err){
+    console.error("Error load detail:", err);
+    alert("Gagal memuat data. Periksa console.");
+  }
+}
+</script>
+</body>
+</html>

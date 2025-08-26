@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Tambah Anggota</title>
+<link rel="stylesheet" href="style.css" />
+<style>
+/* Loading overlay */
+#loadingOverlay {
+  display: none;
+  position: fixed;
+  top:0; left:0; width:100%; height:100%;
+  background: rgba(0,0,0,0.5);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+.spinner {
+  border: 6px solid #f3f3f3;
+  border-top: 6px solid #4CAF50;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+#cancelBtn {
+  margin-top:15px; 
+  padding:8px 12px; 
+  border:none; 
+  border-radius:5px; 
+  cursor:pointer;
+  background:#f44336; 
+  color:white;
+}
+</style>
+</head>
+<body>
+
+<div id="loadingOverlay">
+  <div class="spinner"></div>
+  <div style="margin-top:10px; color:white; font-size:18px;">Sedang memproses...</div>
+  <button id="cancelBtn">Cancel</button>
+</div>
+
+<div class="container">
+  <div class="tambah">
+    <h2>Tambah Anggota</h2>
+    <input type="text" id="nama" placeholder="Nama">
+    <input type="text" id="alamat" placeholder="Alamat">
+    <input type="text" id="umur" placeholder="Umur">
+    <input type="text" id="pekerjaan" placeholder="Pekerjaan">
+    <input type="text" id="telepone" placeholder="No Tlpn">
+    <input type="text" id="bpinjaman" placeholder="Besar Pinjaman">
+    <input type="text" id="noanggota" placeholder="No Anggota">
+    <input type="text" id="pinjamanke" placeholder="Pinjaman Ke">
+    <input type="text" id="drop" placeholder="Tanggal Drop">
+    <select id="resort">
+      <option value="">Pilih Resort</option>
+      <option value="Mariadei">Mariadei</option>
+      <option value="Menawi">Menawi</option>
+      <option value="Aromarea">Aromarea</option>
+      <option value="Anotaurei">Anotaurei</option>
+    </select>
+<label>Foto Pemohon :</label>
+<input type="file" id="foto1" accept="image/*">
+<label>Foto Saksi :</label>
+<input type="file" id="foto2" accept="image/*">
+    <button id="btnSubmit">Tambah Anggota</button>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBZTjmiy6ggJQwhEjGOlxBnpKp-O4B2BZQ",
+  authDomain: "berkah-abadi-tunggal.firebaseapp.com",
+  projectId: "berkah-abadi-tunggal",
+  storageBucket: "berkah-abadi-tunggal.appspot.com",
+  messagingSenderId: "481882897013",
+  appId: "1:481882897013:web:163f26b6e1778743f5963c"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const CLOUD_NAME = "dzfx17fcy"; 
+const UPLOAD_PRESET = "berkah";  
+const MAX_SIZE_MB = 1;
+
+const loadingOverlay = document.getElementById("loadingOverlay");
+const cancelBtn = document.getElementById("cancelBtn");
+let abortControllers = [];
+
+function cekUkuran(file){
+  return !file || file.size / (1024*1024) <= MAX_SIZE_MB;
+}
+
+async function uploadFotoToCloudinary(file){
+  if(!file) return "";
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", UPLOAD_PRESET);
+  formData.append("folder", "anggota");
+
+  const controller = new AbortController();
+  abortControllers.push(controller);
+
+  try{
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+      method: "POST",
+      body: formData,
+      signal: controller.signal
+    });
+    const data = await res.json();
+    return data.secure_url;
+  } catch(err){
+    if(err.name === "AbortError") return "";
+    console.error("Upload gagal:", err);
+    alert("Upload gagal");
+    return "";
+  } finally {
+    abortControllers = abortControllers.filter(c => c !== controller);
+  }
+}
+
+cancelBtn.addEventListener("click", () => {
+  abortControllers.forEach(c => c.abort());
+  abortControllers = [];
+  loadingOverlay.style.display = "none";
+});
+
+onAuthStateChanged(auth, user => {
+  if(!user){
+    alert("Silakan login terlebih dahulu!");
+    window.location.href="login.html";
+  }
+});
+
+document.getElementById("btnSubmit").addEventListener("click", async () => {
+  const nama = document.getElementById("nama").value.trim();
+  const alamat = document.getElementById("alamat").value.trim();
+  const umur = document.getElementById("umur").value.trim();
+  const pekerjaan = document.getElementById("pekerjaan").value.trim();
+  const telepone = document.getElementById("telepone").value.trim();
+  const bpinjaman = document.getElementById("bpinjaman").value.trim();
+  const noanggota = document.getElementById("noanggota").value.trim();
+  const pinjamanke = document.getElementById("pinjamanke").value.trim();
+  const drop = document.getElementById("drop").value.trim();
+  const resort = document.getElementById("resort").value;
+  const file1 = document.getElementById("foto1").files[0];
+  const file2 = document.getElementById("foto2").files[0];
+
+  if(!nama || !alamat || !umur || !pekerjaan || !telepone || !bpinjaman || !noanggota || !pinjamanke || !drop || !resort){
+    alert("Semua field harus diisi!");
+    return;
+  }
+  if(!cekUkuran(file1)){ alert("Foto 1 terlalu besar"); return; }
+  if(!cekUkuran(file2)){ alert("Foto 2 terlalu besar"); return; }
+
+  try{
+    loadingOverlay.style.display = "flex";
+    await new Promise(r=>setTimeout(r,50)); // render overlay
+
+    // upload kedua foto parallel tapi aman
+    const [res1, res2] = await Promise.allSettled([
+      uploadFotoToCloudinary(file1),
+      uploadFotoToCloudinary(file2)
+    ]);
+
+    const urlFoto1 = res1.status==="fulfilled" ? res1.value : "";
+    const urlFoto2 = res2.status==="fulfilled" ? res2.value : "";
+
+    await addDoc(collection(db,"anggota"),{
+      nama, alamat, umur, pekerjaan, telepone,
+      bpinjaman, noanggota, pinjamanke, drop, resort,
+      foto1: urlFoto1, foto2: urlFoto2
+    });
+
+    alert("Anggota berhasil ditambahkan!");
+    window.location.href="dashboard.html";
+  } catch(err){
+    console.error("Error:", err);
+    alert("Gagal menambahkan anggota");
+  } finally{
+    loadingOverlay.style.display = "none";
+  }
+});
+</script>
+</body>
+</html>

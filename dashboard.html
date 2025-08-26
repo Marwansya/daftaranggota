@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard Anggota</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<h2>Daftar Anggota</h2>
+<div class="controls">
+  <input type="text" id="searchInput" placeholder="Cari anggota...">
+  <select id="filterSelect">
+    <option value="">Semua</option>
+    <option value="Mariadei">Mariadei</option>
+    <option value="Menawi">Menawi</option>
+    <option value="Aromarea">Aromarea</option>
+    <option value="Anotaurei">Anotaurei</option>
+  </select>
+  <button id="addBtn">Tambah Anggota</button>
+</div>
+
+<div id="noData" style="display:none;">Tidak ada anggota ditemukan.</div>
+
+<table>
+  <thead >
+    <tr class="teks-gradient">
+      <th>No</th><th>Nama</th><th>Resort</th><th>Detail</th>
+      </tr>
+  </thead>
+  <tbody id="anggotaList"></tbody>
+</table>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBZTjmiy6ggJQwhEjGOlxBnpKp-O4B2BZQ",
+  authDomain: "berkah-abadi-tunggal.firebaseapp.com",
+  projectId: "berkah-abadi-tunggal",
+  storageBucket: "berkah-abadi-tunggal.appspot.com",
+  messagingSenderId: "481882897013",
+  appId: "1:481882897013:web:163f26b6e1778743f5963c"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const anggotaList = document.getElementById("anggotaList");
+const searchInput = document.getElementById("searchInput");
+const filterSelect = document.getElementById("filterSelect");
+const addBtn = document.getElementById("addBtn");
+const noData = document.getElementById("noData");
+
+// Cek login
+onAuthStateChanged(auth, user => {
+  if(!user){
+    alert("Silakan login terlebih dahulu!");
+    window.location.href="login.html";
+  } else {
+    loadAnggota();
+  }
+});
+
+addBtn.addEventListener("click",()=>window.location.href="tambah_anggota.html");
+
+async function loadAnggota(){
+  anggotaList.innerHTML = "";
+  noData.style.display = "none";
+
+  try {
+    let filter = filterSelect.value;
+    let search = searchInput.value.toLowerCase();
+
+    let q = filter ? query(collection(db,"anggota"), where("resort","==",filter)) : collection(db,"anggota");
+    const querySnapshot = await getDocs(q);
+
+    let hasData = false;
+    querySnapshot.forEach(docItem => {
+      const data = docItem.data();
+      if((data.nama && data.nama.toLowerCase().includes(search)) ||
+  (data.noanggota && data.noanggota.toLowerCase().includes(search))
+  ){
+        hasData = true;
+        const row = document.createElement("tr");
+        row.innerHTML=`
+          <td>${data.noanggota}</td>
+          <td>${data.nama}</td>
+          <td>${data.resort || "-"}</td>
+          <td><button class="detailBtn" onclick="window.location.href='detail_anggota.html?id=${docItem.id}'">Lihat</button></td>
+        `;
+        anggotaList.appendChild(row);
+      }
+    });
+
+    if(!hasData) noData.style.display="block";
+  } catch(err){
+    console.error("Error load anggota:", err);
+    noData.innerText="Gagal memuat data. Periksa console.";
+    noData.style.display="block";
+  }
+}
+
+searchInput.addEventListener("input", loadAnggota);
+filterSelect.addEventListener("change", loadAnggota);
+</script>
+</body>
+</html>

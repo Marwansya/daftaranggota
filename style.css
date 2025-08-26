@@ -1,0 +1,113 @@
+@import url('https://fonts.googleapis.com/css2?family=Passion+One&family=Poppins:wght@400;700&display=swap');
+
+body {
+  font-family: 'Poppins', sans-serif;
+  margin: 0px;
+  background-color: #EEEFE0;
+  }
+button { 
+  border-radius: 4px;
+  border:none; 
+  background:#4CAF50; 
+  color:white; 
+  margin: 10px;
+}
+.controls input, .controls select, .controls button { padding:5px 5px; margin:2px;}
+h2 {
+  font-family: 'Passion One', fantasy;
+  text-align: center;
+  color: white;
+  tex-border: 1px solid black;
+  font-size: 30px;
+  text-shadow: 0 0 15px rgba(0,0,0,1);
+}
+table { 
+  width:100%; 
+  border-collapse: collapse; 
+  margin-top:10px; }
+table th, table td { 
+  padding-left: 10px;
+  border:1px solid #ccc; 
+  text-align:left; }
+table th { 
+  background:#f2f2f2; 
+  padding: 5px;
+  margin: 5px;
+}
+#noData { 
+  text-align:center; 
+  color:#888; 
+  font-style:italic; 
+}
+table button {
+  padding: 0px;
+  margin: 5px;
+}
+
+tr:nth-child(2n+1) { background: #C8E6C9; } 
+tr:nth-child(2n+2) { background: #BBDEFB; }
+
+.detailBtn { background:#2196F3; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; }
+.controls {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+
+.container {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.login {
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: #A7C1A8;
+  padding: 20px 0px;
+  font-size: 14px;
+  border-radius :15px;
+  width: 80%;
+  margin-block: 30%;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+}
+.login input {
+  margin: 5px, 5px;
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+}
+.login button {
+  width: 100px;
+  margin: 5px, 5px;
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+}
+
+.login h2 {
+  font-size: 30px;
+  text-shadow: 0 0 15px rgba(0,0,0,1);
+}
+
+.tambah {
+  display: flex;
+  flex-direction: column;
+  background-color: #A7C1A8;
+  border-radius: 15px;
+  width: 90%;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+}
+.tambah input, .tambah select, .tambah button {
+ border-radius: 8px;
+ border: none;
+ margin: 10px;
+ padding: 10px;
+}

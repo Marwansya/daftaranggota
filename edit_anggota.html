@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Edit Anggota</title>
+<link rel="stylesheet" href="style.css" />
+<style>
+  .deleteBtn { 
+    background:#f44336; 
+    color:white; 
+    padding:8px 14px; 
+    border:none; 
+    border-radius:5px; 
+    cursor:pointer; 
+  }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="tambah">
+<h2>Edit Anggota</h2>
+<input type="text" id="noanggota" placeholder="Nomer Anggota">
+<input type="text" id="nama" placeholder="Nama">
+<input type="text" id="umur" placeholder="Umur">
+<input type="text" id="alamat" placeholder="Alamat">
+<input type="text" id="telepone" placeholder="Nomer Telepon">
+<input type="text" id="pekerjaan" placeholder="Pekerjaan">
+<input type="text" id="pinjamanke" placeholder="Pinjaman Ke">
+<input type="text" id="bpinjaman" placeholder="Besar Pinjaman">
+<input type="text" id="drop" placeholder="Tanggal Drop">
+<select id="resort">
+  <option value="">Pilih Resort</option>
+  <option value="Mariadei">Mariadei</option>
+  <option value="Menawi">Menawi</option>
+  <option value="Aromarea">Aromarea</option>
+  <option value="Anotaurei">Anotaurei</option>
+</select>
+
+<!-- Tambahan input foto -->
+<label>Foto Pemohon :</label>
+<input type="file" id="foto1" accept="image/*">
+<label>Foto Saksi :</label>
+<input type="file" id="foto2" accept="image/*">
+
+<button id="btnEdit" class="editBtn">Simpan Perubahan</button>
+<button id="btnDelete" class="deleteBtn" style="display:none;">Hapus Anggota</button>
+</div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, doc, getDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBZTjmiy6ggJQwhEjGOlxBnpKp-O4B2BZQ",
+  authDomain: "berkah-abadi-tunggal.firebaseapp.com",
+  projectId: "berkah-abadi-tunggal",
+  storageBucket: "berkah-abadi-tunggal.appspot.com",
+  messagingSenderId: "481882897013",
+  appId: "1:481882897013:web:163f26b6e1778743f5963c"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// ambil id anggota dari URL
+const params = new URLSearchParams(window.location.search);
+const docId = params.get("id");
+if(!docId){
+  alert("ID anggota tidak ditemukan");
+  window.location.href="dashboard.html";
+}
+
+const namaInput = document.getElementById("nama");
+const alamatInput = document.getElementById("alamat");
+const umurInput = document.getElementById("umur");
+const pekerjaanInput = document.getElementById("pekerjaan");
+const teleponeInput = document.getElementById("telepone");
+const bpinjamanInput = document.getElementById("bpinjaman");
+const noanggotaInput = document.getElementById("noanggota");
+const pinjamankeInput = document.getElementById("pinjamanke");
+const dropInput = document.getElementById("drop");
+const resortSelect = document.getElementById("resort");
+const foto1Input = document.getElementById("foto1");
+const foto2Input = document.getElementById("foto2");
+const btnEdit = document.getElementById("btnEdit");
+const btnDelete = document.getElementById("btnDelete");
+
+// cloudinary config
+const CLOUD_NAME = "dzfx17fcy";
+const UPLOAD_PRESET = "berkah";
+
+let currentData = {};
+
+onAuthStateChanged(auth, async user => {
+  if(!user){
+    alert("Silakan login terlebih dahulu!");
+    window.location.href="login.html";
+  } else {
+    const userRole = localStorage.getItem("userRole") || "karyawan";
+    if(userRole === "admin") btnDelete.style.display = "block";
+    loadData();
+  }
+});
+
+async function loadData(){
+  try{
+    const docRef = doc(db,"anggota",docId);
+    const docSnap = await getDoc(docRef);
+    if(docSnap.exists()){
+      currentData = docSnap.data();
+      namaInput.value = currentData.nama || "";
+      alamatInput.value = currentData.alamat || "";
+      umurInput.value = currentData.umur || "";
+      pekerjaanInput.value = currentData.pekerjaan || "";
+      teleponeInput.value = currentData.telepone || "";
+      bpinjamanInput.value = currentData.bpinjaman || "";
+      noanggotaInput.value = currentData.noanggota || "";
+      pinjamankeInput.value = currentData.pinjamanke || "";
+      dropInput.value = currentData.drop || "";
+      resortSelect.value = currentData.resort || "";
+    } else {
+      alert("Data anggota tidak ditemukan!");
+      window.location.href="dashboard.html";
+    }
+  } catch(err){
+    console.error("Error load data:", err);
+    alert("Gagal memuat data. Periksa console.");
+  }
+}
+
+async function uploadFoto(file){
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", UPLOAD_PRESET);
+
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,{
+    method:"POST",
+    body:formData
+  });
+  const data = await res.json();
+  return data.secure_url;
+}
+
+btnEdit.addEventListener("click", async ()=>{
+  const nama = namaInput.value.trim();
+  const alamat = alamatInput.value.trim();
+  const umur = umurInput.value.trim();
+  const pekerjaan = pekerjaanInput.value.trim();
+  const telepone = teleponeInput.value.trim();
+  const bpinjaman = bpinjamanInput.value.trim();
+  const noanggota = noanggotaInput.value.trim();
+  const pinjamanke = pinjamankeInput.value.trim();
+  const drop = dropInput.value.trim();
+  const resort = resortSelect.value;
+
+  if(!nama || !alamat || !umur || !pekerjaan || !telepone || !bpinjaman || !noanggota || !pinjamanke || !drop || !resort){
+    alert("Semua field harus diisi!");
+    return;
+  }
+
+  try{
+    let foto1Url = currentData.foto1 || "";
+    let foto2Url = currentData.foto2 || "";
+
+    if(foto1Input.files.length > 0){
+      foto1Url = await uploadFoto(foto1Input.files[0]);
+    }
+    if(foto2Input.files.length > 0){
+      foto2Url = await uploadFoto(foto2Input.files[0]);
+    }
+
+    const docRef = doc(db,"anggota",docId);
+    await updateDoc(docRef,{
+      nama,
+      alamat,
+      umur,
+      pekerjaan,
+      telepone,
+      bpinjaman,
+      noanggota,
+      pinjamanke,
+      drop,
+      resort,
+      foto1: foto1Url,
+      foto2: foto2Url
+    });
+    alert("Data anggota berhasil diperbarui!");
+    window.location.href="dashboard.html";
+  } catch(err){
+    console.error("Error update:", err);
+    alert("Gagal memperbarui data. Periksa console.");
+  }
+});
+
+btnDelete.addEventListener("click", async ()=>{
+  if(confirm("Apakah Anda yakin ingin menghapus anggota ini?")){
+    try{
+      const docRef = doc(db,"anggota",docId);
+      await deleteDoc(docRef);
+      alert("Anggota berhasil dihapus!");
+      window.location.href="dashboard.html";
+    } catch(err){
+      console.error("Error hapus:", err);
+      alert("Gagal menghapus anggota. Periksa console.");
+    }
+  }
+});
+</script>
+</body>
+</html>
