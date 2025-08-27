@@ -2,7 +2,6 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Edit Anggota</title>
 <link rel="stylesheet" href="style.css" />
 <style>
@@ -14,38 +13,66 @@
     border-radius:5px; 
     cursor:pointer; 
   }
+  /* Loading overlay */
+  .loading-overlay {
+    display: none;
+    position: fixed;
+    top:0; left:0; width:100%; height:100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+  }
+  .spinner {
+    border: 6px solid #f3f3f3;
+    border-top: 6px solid #3498db;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
 </style>
 </head>
 <body>
 <div class="container">
-<div class="tambah">
-<h2>Edit Anggota</h2>
-<input type="text" id="noanggota" placeholder="Nomer Anggota">
-<input type="text" id="nama" placeholder="Nama">
-<input type="text" id="umur" placeholder="Umur">
-<input type="text" id="alamat" placeholder="Alamat">
-<input type="text" id="telepone" placeholder="Nomer Telepon">
-<input type="text" id="pekerjaan" placeholder="Pekerjaan">
-<input type="text" id="pinjamanke" placeholder="Pinjaman Ke">
-<input type="text" id="bpinjaman" placeholder="Besar Pinjaman">
-<input type="text" id="drop" placeholder="Tanggal Drop">
-<select id="resort">
-  <option value="">Pilih Resort</option>
-  <option value="Mariadei">Mariadei</option>
-  <option value="Menawi">Menawi</option>
-  <option value="Aromarea">Aromarea</option>
-  <option value="Anotaurei">Anotaurei</option>
-</select>
+  <div class="tambah">
+    <h2>Edit Anggota</h2>
+    <input type="text" id="noanggota" placeholder="Nomer Anggota">
+    <input type="text" id="nama" placeholder="Nama">
+    <input type="text" id="umur" placeholder="Umur">
+    <input type="text" id="alamat" placeholder="Alamat">
+    <input type="text" id="telepone" placeholder="Nomer Telepon">
+    <input type="text" id="pekerjaan" placeholder="Pekerjaan">
+    <input type="text" id="pinjamanke" placeholder="Pinjaman Ke">
+    <input type="text" id="bpinjaman" placeholder="Besar Pinjaman">
+    <input type="text" id="drop" placeholder="Tanggal Drop">
+    <select id="resort">
+      <option value="">Pilih Resort</option>
+      <option value="Mariadei">Mariadei</option>
+      <option value="Menawi">Menawi</option>
+      <option value="Aromarea">Aromarea</option>
+      <option value="Anotaurei">Anotaurei</option>
+    </select>
 
-<!-- Tambahan input foto -->
-<label>Foto Pemohon :</label>
-<input type="file" id="foto1" accept="image/*">
-<label>Foto Saksi :</label>
-<input type="file" id="foto2" accept="image/*">
+    <label>Foto Pemohon :</label>
+    <input type="file" id="foto1" accept="image/*">
+    <label>Foto Saksi :</label>
+    <input type="file" id="foto2" accept="image/*">
 
-<button id="btnEdit" class="editBtn">Simpan Perubahan</button>
-<button id="btnDelete" class="deleteBtn" style="display:none;">Hapus Anggota</button>
+    <button id="btnEdit" class="editBtn">Simpan Perubahan</button>
+    <button id="btnDelete" class="deleteBtn" style="display:none;">Hapus Anggota</button>
+  </div>
 </div>
+
+<!-- Loading overlay -->
+<div id="loading" class="loading-overlay">
+  <div class="spinner"></div>
 </div>
 
 <script type="module">
@@ -66,7 +93,6 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// ambil id anggota dari URL
 const params = new URLSearchParams(window.location.search);
 const docId = params.get("id");
 if(!docId){
@@ -89,11 +115,22 @@ const foto2Input = document.getElementById("foto2");
 const btnEdit = document.getElementById("btnEdit");
 const btnDelete = document.getElementById("btnDelete");
 
-// cloudinary config
 const CLOUD_NAME = "dzfx17fcy";
 const UPLOAD_PRESET = "berkah";
+let currentData = [];
 
-let currentData = {};
+function showLoading(){ document.getElementById("loading").style.display="flex"; }
+function hideLoading(){ document.getElementById("loading").style.display="none"; }
+
+async function uploadFoto(file){
+  if(!file) return "";
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", UPLOAD_PRESET);
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method:"POST", body:formData });
+  const data = await res.json();
+  return data.secure_url;
+}
 
 onAuthStateChanged(auth, async user => {
   if(!user){
@@ -101,13 +138,14 @@ onAuthStateChanged(auth, async user => {
     window.location.href="login.html";
   } else {
     const userRole = localStorage.getItem("userRole") || "karyawan";
-    if(userRole === "admin") btnDelete.style.display = "block";
-    loadData();
+    if(userRole==="admin") btnDelete.style.display="block";
+    await loadData();
   }
 });
 
 async function loadData(){
   try{
+    showLoading();
     const docRef = doc(db,"anggota",docId);
     const docSnap = await getDoc(docRef);
     if(docSnap.exists()){
@@ -127,22 +165,11 @@ async function loadData(){
       window.location.href="dashboard.html";
     }
   } catch(err){
-    console.error("Error load data:", err);
-    alert("Gagal memuat data. Periksa console.");
+    console.error("Error load:", err);
+    alert("Gagal memuat data!");
+  } finally{
+    hideLoading();
   }
-}
-
-async function uploadFoto(file){
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("upload_preset", UPLOAD_PRESET);
-
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,{
-    method:"POST",
-    body:formData
-  });
-  const data = await res.json();
-  return data.secure_url;
 }
 
 btnEdit.addEventListener("click", async ()=>{
@@ -163,49 +190,40 @@ btnEdit.addEventListener("click", async ()=>{
   }
 
   try{
+    showLoading();
     let foto1Url = currentData.foto1 || "";
     let foto2Url = currentData.foto2 || "";
-
-    if(foto1Input.files.length > 0){
-      foto1Url = await uploadFoto(foto1Input.files[0]);
-    }
-    if(foto2Input.files.length > 0){
-      foto2Url = await uploadFoto(foto2Input.files[0]);
-    }
+    if(foto1Input.files.length>0) foto1Url = await uploadFoto(foto1Input.files[0]);
+    if(foto2Input.files.length>0) foto2Url = await uploadFoto(foto2Input.files[0]);
 
     const docRef = doc(db,"anggota",docId);
     await updateDoc(docRef,{
-      nama,
-      alamat,
-      umur,
-      pekerjaan,
-      telepone,
-      bpinjaman,
-      noanggota,
-      pinjamanke,
-      drop,
-      resort,
-      foto1: foto1Url,
-      foto2: foto2Url
+      nama, alamat, umur, pekerjaan, telepone, bpinjaman, noanggota, pinjamanke, drop, resort,
+      foto1: foto1Url, foto2: foto2Url
     });
-    alert("Data anggota berhasil diperbarui!");
+    alert("Data berhasil diperbarui!");
     window.location.href="dashboard.html";
   } catch(err){
     console.error("Error update:", err);
-    alert("Gagal memperbarui data. Hanya admin.");
+    alert("Gagal memperbarui data!");
+  } finally{
+    hideLoading();
   }
 });
 
 btnDelete.addEventListener("click", async ()=>{
-  if(confirm("Apakah Anda yakin ingin menghapus anggota ini?")){
+  if(confirm("Yakin hapus anggota?")){
     try{
+      showLoading();
       const docRef = doc(db,"anggota",docId);
       await deleteDoc(docRef);
-      alert("Anggota berhasil dihapus!");
+      alert("Data berhasil dihapus!");
       window.location.href="dashboard.html";
     } catch(err){
       console.error("Error hapus:", err);
-      alert("Gagal menghapus anggota. Periksa console.");
+      alert("Gagal menghapus data!");
+    } finally{
+      hideLoading();
     }
   }
 });
