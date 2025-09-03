@@ -5,6 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard Anggota</title>
 <link rel="stylesheet" href="style.css" />
+<style>
+@media print {
+  h2, input, select, .controls, button {
+    display: none;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+}
+</style>
 </head>
 <body>
 <h2>Daftar Anggota</h2>
@@ -30,6 +41,9 @@
   </thead>
   <tbody id="anggotaList"></tbody>
 </table>
+<div class="print">
+  <button onclick="window.print()">Cetak</button>
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";

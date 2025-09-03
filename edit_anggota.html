@@ -79,7 +79,9 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, getDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { 
+  getFirestore, doc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs 
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBZTjmiy6ggJQwhEjGOlxBnpKp-O4B2BZQ",
@@ -118,7 +120,7 @@ const btnDelete = document.getElementById("btnDelete");
 
 const CLOUD_NAME = "dzfx17fcy";
 const UPLOAD_PRESET = "berkah";
-let currentData = [];
+let currentData = {};
 
 function showLoading(){ document.getElementById("loading").style.display="flex"; }
 function hideLoading(){ document.getElementById("loading").style.display="none"; }
@@ -131,6 +133,32 @@ async function uploadFoto(file){
   const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method:"POST", body:formData });
   const data = await res.json();
   return data.secure_url;
+}
+
+// 🔹 fungsi untuk cek dan generate noanggota unik (hindari duplikat)
+async function getUniqueNoAnggota(noanggota){
+  const q = query(collection(db,"anggota"), where("noanggota", ">=", noanggota));
+  const snap = await getDocs(q);
+
+  const existing = snap.docs
+    .filter(d => d.id !== docId) // jangan bandingkan dengan dirinya sendiri
+    .map(d => d.data().noanggota)
+    .filter(n => n.startsWith(noanggota));
+
+  if(existing.length === 0){
+    return noanggota; // aman
+  } else {
+    const konfirmasi = confirm(
+      `Nomor anggota ${noanggota} sudah dipakai.\nApakah tetap ingin simpan dengan nomor baru?`
+    );
+    if(!konfirmasi) return null;
+
+    let suffixChar = "A";
+    while(existing.includes(noanggota + "-" + suffixChar)){
+      suffixChar = String.fromCharCode(suffixChar.charCodeAt(0) + 1);
+    }
+    return noanggota + "-" + suffixChar;
+  }
 }
 
 onAuthStateChanged(auth, async user => {
@@ -180,7 +208,7 @@ btnEdit.addEventListener("click", async ()=>{
   const pekerjaan = pekerjaanInput.value.trim();
   const telepone = teleponeInput.value.trim();
   const bpinjaman = bpinjamanInput.value.trim();
-  const noanggota = noanggotaInput.value.trim();
+  let noanggota = noanggotaInput.value.trim();
   const pinjamanke = pinjamankeInput.value.trim();
   const drop = dropInput.value.trim();
   const resort = resortSelect.value;
@@ -192,6 +220,16 @@ btnEdit.addEventListener("click", async ()=>{
 
   try{
     showLoading();
+
+    // 🔹 cek noanggota unik
+    const uniqueNo = await getUniqueNoAnggota(noanggota);
+    if(!uniqueNo){
+      hideLoading();
+      return;
+    }
+    noanggota = uniqueNo;
+
+    // foto
     let foto1Url = currentData.foto1 || "";
     let foto2Url = currentData.foto2 || "";
     if(foto1Input.files.length>0) foto1Url = await uploadFoto(foto1Input.files[0]);
@@ -202,7 +240,8 @@ btnEdit.addEventListener("click", async ()=>{
       nama, alamat, umur, pekerjaan, telepone, bpinjaman, noanggota, pinjamanke, drop, resort,
       foto1: foto1Url, foto2: foto2Url
     });
-    alert("Data berhasil diperbarui!");
+
+    alert("Data berhasil diperbarui dengan No: " + noanggota);
     window.location.href="dashboard.html";
   } catch(err){
     console.error("Error update:", err);

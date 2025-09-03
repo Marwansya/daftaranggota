@@ -79,7 +79,9 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { 
+  getFirestore, collection, addDoc, query, where, getDocs 
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBZTjmiy6ggJQwhEjGOlxBnpKp-O4B2BZQ",
@@ -147,6 +149,31 @@ onAuthStateChanged(auth, user => {
   }
 });
 
+// fungsi untuk cek dan generate noanggota unik
+async function getUniqueNoAnggota(noanggota){
+  const q = query(collection(db, "anggota"), where("noanggota", ">=", noanggota));
+  const snapshot = await getDocs(q);
+
+  // filter hanya yang mirip dengan nomor dasar
+  const existing = snapshot.docs.map(d => d.data().noanggota).filter(n => n.startsWith(noanggota));
+
+  if(existing.length === 0) {
+    return noanggota; // belum ada, aman
+  } else {
+    const konfirmasi = confirm(
+      `Nomor anggota ${noanggota} sudah dipakai.\nApakah tetap ingin simpan dengan nomor baru?`
+    );
+    if(!konfirmasi) return null;
+
+    // cari suffix berikutnya (-A, -B, -C ...)
+    let suffixChar = "A";
+    while(existing.includes(noanggota + "-" + suffixChar)){
+      suffixChar = String.fromCharCode(suffixChar.charCodeAt(0) + 1);
+    }
+    return noanggota + "-" + suffixChar;
+  }
+}
+
 document.getElementById("btnSubmit").addEventListener("click", async () => {
   const nama = document.getElementById("nama").value.trim();
   const alamat = document.getElementById("alamat").value.trim();
@@ -154,7 +181,7 @@ document.getElementById("btnSubmit").addEventListener("click", async () => {
   const pekerjaan = document.getElementById("pekerjaan").value.trim();
   const telepone = document.getElementById("telepone").value.trim();
   const bpinjaman = document.getElementById("bpinjaman").value.trim();
-  const noanggota = document.getElementById("noanggota").value.trim();
+  let noanggota = document.getElementById("noanggota").value.trim();
   const pinjamanke = document.getElementById("pinjamanke").value.trim();
   const drop = document.getElementById("drop").value.trim();
   const resort = document.getElementById("resort").value;
@@ -172,7 +199,15 @@ document.getElementById("btnSubmit").addEventListener("click", async () => {
     loadingOverlay.style.display = "flex";
     await new Promise(r=>setTimeout(r,50)); // render overlay
 
-    // upload kedua foto parallel tapi aman
+    // cek apakah noanggota sudah ada
+    const uniqueNo = await getUniqueNoAnggota(noanggota);
+    if(!uniqueNo){ 
+      loadingOverlay.style.display = "none";
+      return; 
+    }
+    noanggota = uniqueNo;
+
+    // upload kedua foto parallel
     const [res1, res2] = await Promise.allSettled([
       uploadFotoToCloudinary(file1),
       uploadFotoToCloudinary(file2)
@@ -187,7 +222,7 @@ document.getElementById("btnSubmit").addEventListener("click", async () => {
       foto1: urlFoto1, foto2: urlFoto2
     });
 
-    alert("Anggota berhasil ditambahkan!");
+    alert("Anggota berhasil ditambahkan dengan No: " + noanggota);
     window.location.href="dashboard.html";
   } catch(err){
     console.error("Error:", err);
