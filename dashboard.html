@@ -2,20 +2,8 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard Anggota</title>
 <link rel="stylesheet" href="style.css" />
-<style>
-@media print {
-  h2, input, select, .controls, button {
-    display: none;
-  }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-}
-</style>
 </head>
 <body>
 <h2>Daftar Anggota</h2>
@@ -34,66 +22,39 @@
 <div id="noData" style="display:none;">Tidak ada anggota ditemukan.</div>
 
 <table>
-  <thead>
+  <thead >
     <tr class="teks-gradient">
       <th>No</th><th>Nama</th><th>Resort</th><th>Detail</th>
-    </tr>
+      </tr>
   </thead>
   <tbody id="anggotaList"></tbody>
 </table>
-<div class="print">
-  <button onclick="window.print()">Cetak</button>
-</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { 
-  getFirestore, collection, getDocs, query, where, orderBy, limit, startAfter 
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-// --- tambahkan compat sebagai fallback ---
-import "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBZTjmiy6ggJQwhEjGOlxBnpKp-O4B2BZQ",
-  authDomain: "berkah-abadi-tunggal.firebaseapp.com",
-  projectId: "berkah-abadi-tunggal",
-  storageBucket: "berkah-abadi-tunggal.appspot.com",
-  messagingSenderId: "481882897013",
-  appId: "1:481882897013:web:163f26b6e1778743f5963c"
+  apiKey: "AIzaSyDCN_f85TT4aGNzNm-F8FIc9KZijX-JGnM",
+  authDomain: "ksp-berkah-abadi.firebaseapp.com",
+  projectId: "ksp-berkah-abadi",
+  storageBucket: "ksp-berkah-abadi.firebasestorage.app",
+  messagingSenderId: "995708222619",
+  appId: "1:995708222619:web:6c18ce1d0ff16d5d6b5a3e"
 };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-let db;
+const db = getFirestore(app);
 
-// coba modular firestore
-try {
-  db = getFirestore(app);
-} catch (e) {
-  console.warn("Modular Firestore gagal, fallback ke compat", e);
-  db = firebase.firestore();
-}
-
-// variabel UI tetap sama
 const anggotaList = document.getElementById("anggotaList");
 const searchInput = document.getElementById("searchInput");
 const filterSelect = document.getElementById("filterSelect");
 const addBtn = document.getElementById("addBtn");
 const noData = document.getElementById("noData");
 
-const paginationDiv = document.createElement("div");
-paginationDiv.id = "pagination";
-paginationDiv.style.marginTop = "10px";
-paginationDiv.style.textAlign = "center";
-document.body.appendChild(paginationDiv);
-
-let lastVisible = null;
-let currentPage = 1;
-let pageStack = [];
-
-// cek login
+// Cek login
 onAuthStateChanged(auth, user => {
   if(!user){
     alert("Silakan login terlebih dahulu!");
@@ -105,69 +66,24 @@ onAuthStateChanged(auth, user => {
 
 addBtn.addEventListener("click",()=>window.location.href="tambah_anggota.html");
 
-// HYBRID loadAnggota
-async function loadAnggota(next=false, prev=false){
+async function loadAnggota(){
   anggotaList.innerHTML = "";
   noData.style.display = "none";
-  paginationDiv.innerHTML = "";
 
   try {
     let filter = filterSelect.value;
     let search = searchInput.value.toLowerCase();
 
-    let q;
-    // --- hybrid query ---
-    if (db.collection) {
-      // COMPAT
-      let baseRef = db.collection("anggota");
-      if (filter) baseRef = baseRef.where("resort", "==", filter);
-      q = baseRef.orderBy("nama").limit(20);
+    let q = filter ? query(collection(db,"anggota"), where("resort","==",filter)) : collection(db,"anggota");
+    const querySnapshot = await getDocs(q);
 
-      if (next && lastVisible) q = baseRef.orderBy("nama").startAfter(lastVisible).limit(20);
-      if (prev && currentPage > 1) {
-        currentPage--;
-        let prevStart = pageStack[currentPage-1];
-        q = baseRef.orderBy("nama").startAfter(prevStart).limit(20);
-      }
-
-      var querySnapshot = await q.get();
-
-    } else {
-      // MODULAR
-      let baseQuery = filter 
-        ? query(collection(db,"anggota"), where("resort","==",filter))
-        : collection(db,"anggota");
-
-      q = query(baseQuery, orderBy("nama"), limit(20));
-
-      if(next && lastVisible){
-        q = query(baseQuery, orderBy("nama"), startAfter(lastVisible), limit(20));
-      }
-
-      if(prev && currentPage > 1){
-        currentPage--;
-        let prevStart = pageStack[currentPage-1];
-        q = query(baseQuery, orderBy("nama"), startAfter(prevStart), limit(20));
-      }
-
-      var querySnapshot = await getDocs(q);
-    }
-
-    if(querySnapshot.empty || querySnapshot.size === 0){
-      noData.style.display="block";
-      return;
-    }
-
-    lastVisible = querySnapshot.docs[querySnapshot.docs.length-1];
-    if(pageStack.length < currentPage) {
-      pageStack.push(querySnapshot.docs[0]);
-    }
-
+    let hasData = false;
     querySnapshot.forEach(docItem => {
       const data = docItem.data();
       if((data.nama && data.nama.toLowerCase().includes(search)) ||
-         (data.noanggota && data.noanggota.toLowerCase().includes(search))
-      ){
+  (data.noanggota && data.noanggota.toLowerCase().includes(search))
+  ){
+        hasData = true;
         const row = document.createElement("tr");
         row.innerHTML=`
           <td>${data.noanggota}</td>
@@ -179,129 +95,16 @@ async function loadAnggota(next=false, prev=false){
       }
     });
 
-    // Buat pagination
-    let prevBtn = document.createElement("button");
-    prevBtn.innerText = "Prev";
-    prevBtn.disabled = currentPage === 1;
-    prevBtn.onclick = () => { loadAnggota(false, true); };
-
-    let nextBtn = document.createElement("button");
-    nextBtn.innerText = "Next";
-    nextBtn.onclick = () => { currentPage++; loadAnggota(true, false); };
-
-    paginationDiv.appendChild(prevBtn);
-
-    // angka halaman (tampilkan max 5 halaman ke depan)
-    for(let i = 1; i <= currentPage + 2; i++){
-      let btn = document.createElement("button");
-      btn.innerText = i;
-      btn.style.margin = "0 3px";
-      if(i === currentPage){
-        btn.disabled = true;
-        btn.style.fontWeight = "bold";
-      }
-      btn.onclick = async () => {
-        currentPage = i;
-        pageStack = [];
-        await reloadPage(i);
-      };
-      paginationDiv.appendChild(btn);
-    }
-
-    paginationDiv.appendChild(nextBtn);
-
+    if(!hasData) noData.style.display="block";
   } catch(err){
-    console.error("Error load anggota hybrid:", err);
+    console.error("Error load anggota:", err);
     noData.innerText="Gagal memuat data. Periksa console.";
     noData.style.display="block";
   }
 }
 
-// reloadPage hybrid
-async function reloadPage(targetPage){
-  anggotaList.innerHTML = "Loading...";
-  let filter = filterSelect.value;
-
-  try {
-    let q;
-    if (db.collection) {
-      // compat
-      let baseRef = db.collection("anggota");
-      if (filter) baseRef = baseRef.where("resort", "==", filter);
-      q = baseRef.orderBy("nama").limit(20);
-
-      pageStack = [];
-      let snapshot;
-      for(let i=1;i<=targetPage;i++){
-        snapshot = await q.get();
-        if(snapshot.empty) break;
-        if(i < targetPage){
-          let last = snapshot.docs[snapshot.docs.length-1];
-          q = baseRef.orderBy("nama").startAfter(last).limit(20);
-          pageStack.push(snapshot.docs[0]);
-        }
-      }
-
-      lastVisible = snapshot.docs[snapshot.docs.length-1];
-      anggotaList.innerHTML = "";
-      snapshot.forEach(docItem=>{
-        const data = docItem.data();
-        const row = document.createElement("tr");
-        row.innerHTML=`
-          <td>${data.noanggota}</td>
-          <td>${data.nama}</td>
-          <td>${data.resort || "-"}</td>
-          <td><button class="detailBtn" onclick="window.location.href='detail_anggota.html?id=${docItem.id}'">Lihat</button></td>
-        `;
-        anggotaList.appendChild(row);
-      });
-
-    } else {
-      // modular
-      let baseQuery = filter 
-        ? query(collection(db,"anggota"), where("resort","==",filter))
-        : collection(db,"anggota");
-
-      q = query(baseQuery, orderBy("nama"), limit(20));
-      let snapshot;
-      pageStack = [];
-
-      for(let i=1;i<=targetPage;i++){
-        snapshot = await getDocs(q);
-        if(snapshot.empty) break;
-        if(i < targetPage){
-          let last = snapshot.docs[snapshot.docs.length-1];
-          q = query(baseQuery, orderBy("nama"), startAfter(last), limit(20));
-          pageStack.push(snapshot.docs[0]);
-        }
-      }
-
-      lastVisible = snapshot.docs[snapshot.docs.length-1];
-      anggotaList.innerHTML = "";
-      snapshot.forEach(docItem=>{
-        const data = docItem.data();
-        const row = document.createElement("tr");
-        row.innerHTML=`
-          <td>${data.noanggota}</td>
-          <td>${data.nama}</td>
-          <td>${data.resort || "-"}</td>
-          <td><button class="detailBtn" onclick="window.location.href='detail_anggota.html?id=${docItem.id}'">Lihat</button></td>
-        `;
-        anggotaList.appendChild(row);
-      });
-    }
-
-    loadAnggota(); // refresh tombol pagination
-
-  } catch (err) {
-    console.error("Error reloadPage hybrid:", err);
-    noData.style.display="block";
-    noData.innerText="Gagal memuat data halaman.";
-  }
-}
-
-searchInput.addEventListener("input", ()=>{ currentPage=1; pageStack=[]; loadAnggota(); });
-filterSelect.addEventListener("change", ()=>{ currentPage=1; pageStack=[]; loadAnggota(); });
+searchInput.addEventListener("input", loadAnggota);
+filterSelect.addEventListener("change", loadAnggota);
 </script>
 </body>
 </html>
