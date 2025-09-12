@@ -104,7 +104,7 @@ if(!docId){
 onAuthStateChanged(auth, async user => {
   if(!user){
     alert("Silakan login terlebih dahulu!");
-    window.location.href = "login.html";
+    window.location.href = "index.html";
   } else {
     const userRole = localStorage.getItem("userRole") || "karyawan";
     loadDetail(docId, userRole);
